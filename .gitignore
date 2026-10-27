@@ -1,0 +1,20 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Certificates and keys
+*.pem
+*.key
+
+# SQLite database (optional: un-comment if you don't want local test data in repo)
+# app/potholes.db
+
+# OS generated files
+.DS_Store
+Thumbs.db

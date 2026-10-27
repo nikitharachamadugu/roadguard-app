@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RoadGuard Bengaluru • Namma Road Safety</title>
+    <meta name="description" content="Pastel, friendly mobile app to report potholes and road hazards in Bengaluru for quicker BBMP repairs.">
+    <meta name="theme-color" content="#86EFAC">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit (Curved, friendly, modern) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Custom CSS (Capi Creative Pastel Aesthetics) -->
+    <link rel="stylesheet" href="/static/css/style.css?v={{ v }}">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW register error', err));
+            });
+        }
+    </script>
+</head>
+<body class="pastel-theme">
+
+    <!-- TOP HEADER WITH FRIENDLY GREETING -->
+    <header class="capi-header">
+        <div class="header-inner">
+            <div class="greeting-group">
+                <div class="user-avatar-badge">
+                    <span class="avatar-emoji">🌸</span>
+                </div>
+                <div class="user-welcome">
+                    <span class="greeting-sub">Namaskara, Citizen</span>
+                    <h1 class="greeting-main">RoadGuard <span class="highlight-green">Bengaluru</span></h1>
+                </div>
+            </div>
+
+            <!-- Desktop Nav (Hidden on Mobile) -->
+            <nav class="desktop-nav">
+                <button type="button" class="nav-tab-btn active" data-tab="tab-report">
+                    <i data-lucide="plus-circle"></i> Report
+                </button>
+                <button type="button" class="nav-tab-btn" data-tab="tab-map">
+                    <i data-lucide="map-pin"></i> Live Map
+                </button>
+                <button type="button" class="nav-tab-btn" data-tab="tab-list">
+                    <i data-lucide="list"></i> Hazards
+                </button>
+                <button type="button" class="nav-tab-btn" data-tab="tab-mayor">
+                    <i data-lucide="phone"></i> Mayor
+                </button>
+            </nav>
+
+            <!-- Sound Alert Toggle Pill -->
+            <button type="button" class="btn-pastel-sound" id="btnToggleRadar" title="Sound alarm when near a pothole">
+                <i data-lucide="volume-2" id="radarSoundIcon"></i>
+                <span id="radarSoundLabel">Buzz: ON</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN BODY CONTAINER -->
+    <main class="app-main">
+
+        <!-- ======================================================== -->
+        <!-- TAB 1: REPORT HAZARD (PASTEL CARDS & BIG ACTIONS)        -->
+        <!-- ======================================================== -->
+        <section class="tab-pane active" id="tab-report">
+            <div class="content-wrapper">
+
+                <!-- PROXIMITY BUZZ BANNER -->
+                <div class="proximity-banner" id="proximityBuzzBanner" style="display: none;">
+                    <div class="proximity-icon">
+                        <i data-lucide="bell-ring"></i>
+                    </div>
+                    <div class="proximity-info">
+                        <strong id="buzzHazardTitle">⚠️ Pothole Alert (50m Ahead!)</strong>
+                        <p id="buzzHazardDesc">Drive carefully. Crater reported nearby.</p>
+                    </div>
+                    <button type="button" class="btn-dismiss-buzz" id="btnDismissBuzz">OK</button>
+                </div>
+
+                <!-- SUCCESS SUBMISSION CARD -->
+                <div class="success-submission-card" id="submissionSuccessBox" style="display: none;">
+                    <div class="success-badge-circle">
+                        <i data-lucide="check"></i>
+                    </div>
+                    <h3>Report Filed Successfully!</h3>
+                    <p class="success-ticket" id="successTicketNum">Ticket: #RDG-58291</p>
+                    <p class="success-desc">Logged with exact GPS coordinates and photo evidence for quicker BBMP repair.</p>
+                    
+                    <div class="quick-escalation-btns">
+                        <a href="#" target="_blank" class="btn-action-green" id="btnSuccessWhatsApp">
+                            <i data-lucide="message-circle"></i>
+                            <span>1-Tap Send WhatsApp to BBMP (+91 94806 85700)</span>
+                        </a>
+                        <a href="tel:1533" class="btn-action-blue">
+                            <i data-lucide="phone"></i>
+                            <span>Call BBMP 1533 Helpline</span>
+                        </a>
+                        <button type="button" class="btn-action-outline" id="btnReportAnother">
+                            <i data-lucide="plus"></i>
+                            <span>Report Another Road Hazard</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- REPORT FLOW CONTAINER -->
+                <div id="reportFlowContainer">
+
+                    <!-- HERO STAT CARD (Like Capi Creative's Top Card) -->
+                    <div class="pastel-hero-card">
+                        <div class="hero-top-row">
+                            <div class="hero-chip">
+                                <i data-lucide="sparkles"></i>
+                                <span>Civic AI Tracker</span>
+                            </div>
+                            <span class="hero-city-tag">Bengaluru, KA</span>
+                        </div>
+                        <h2 class="hero-headline">Spot a Pothole?<br>Report in 3 Fast Steps</h2>
+                        <p class="hero-subtext">Helps BBMP patch roads quicker & protects 2-wheeler riders.</p>
+                    </div>
+
+                    <!-- STEP 1: LOCATION CARD -->
+                    <div class="pastel-card step-card-tint-green">
+                        <div class="card-header-row">
+                            <div class="step-circle-badge bg-badge-green">01</div>
+                            <div class="card-title-group">
+                                <h3>Hazard Location</h3>
+                                <p>Pin the exact spot on Bengaluru road</p>
+                            </div>
+                        </div>
+
+                        <!-- BIG PROMINENT CURRENT LOCATION BUTTON -->
+                        <button type="button" class="btn-huge-location-pastel" id="btnGetLocation">
+                            <div class="btn-icon-circle-white">
+                                <i data-lucide="crosshair" class="pulsing-gps-icon"></i>
+                            </div>
+                            <div class="btn-location-texts">
+                                <span class="loc-btn-title">📍 TAP TO USE MY CURRENT LOCATION</span>
+                                <span class="loc-btn-sub">Uses your phone's live GPS coordinates</span>
+                            </div>
+                        </button>
+
+                        <!-- HTTPS Switch Tip (Shown when browser limits GPS over HTTP) -->
+                        <div class="https-tip-box" id="httpsTipBox" style="display: none;">
+                            <div class="https-tip-header">
+                                <i data-lucide="shield-alert"></i>
+                                <span>Phone Chrome blocks GPS on plain HTTP</span>
+                            </div>
+                            <p>To enable real-time GPS hardware access on your phone:</p>
+                            <a href="https://192.168.0.178:5443" id="linkHttpsSwitch" class="btn-https-link">
+                                🔒 Open via Secure HTTPS (https://192.168.0.178:5443)
+                            </a>
+                        </div>
+
+                        <!-- 1-TAP BENGALURU HOTSPOT CHIPS -->
+                        <div class="pastel-chips-container">
+                            <span class="chips-heading"><i data-lucide="map-pin"></i> Or Tap Your Area (1-Click Instant):</span>
+                            <div class="chips-scroll-wrap">
+                                <button type="button" class="btn-area-chip active" data-lat="12.917649" data-lng="77.623788" data-addr="Silk Board Junction, Hosur Road, BTM Layout, Bengaluru" data-zone="Bommanahalli Zone" data-ward="Ward 174 (BTM Layout)">📍 Silk Board</button>
+                                <button type="button" class="btn-area-chip" data-lat="12.978369" data-lng="77.640839" data-addr="100 Feet Road, Indiranagar, Bengaluru" data-zone="East Zone" data-ward="Ward 80 (Indiranagar)">📍 Indiranagar</button>
+                                <button type="button" class="btn-area-chip" data-lat="12.935242" data-lng="77.624466" data-addr="80 Feet Road, Koramangala 4th Block, Bengaluru" data-zone="South Zone" data-ward="Ward 151 (Koramangala)">📍 Koramangala</button>
+                                <button type="button" class="btn-area-chip" data-lat="12.911623" data-lng="77.638863" data-addr="27th Main Rd, HSR Layout Sector 1, Bengaluru" data-zone="Bommanahalli Zone" data-ward="Ward 174 (HSR Layout)">📍 HSR Layout</button>
+                                <button type="button" class="btn-area-chip" data-lat="12.984523" data-lng="77.749871" data-addr="Whitefield Main Rd near ITPL, Bengaluru" data-zone="Mahadevapura Zone" data-ward="Ward 84 (Hagadur)">📍 Whitefield</button>
+                                <button type="button" class="btn-area-chip" data-lat="12.930428" data-lng="77.678413" data-addr="Outer Ring Road, Bellandur, Bengaluru" data-zone="Mahadevapura Zone" data-ward="Ward 150 (Bellandur)">📍 Bellandur</button>
+                                <button type="button" class="btn-area-chip" data-lat="12.975226" data-lng="77.609436" data-addr="MG Road / Brigade Road Junction, Bengaluru" data-zone="Central Zone" data-ward="Ward 111 (Shantala Nagar)">📍 MG Road</button>
+                                <button type="button" class="btn-area-chip" data-lat="13.035845" data-lng="77.597022" data-addr="Hebbal Flyover, Bellary Road, Bengaluru" data-zone="Yelahanka Zone" data-ward="Ward 7 (Hebbal)">📍 Hebbal</button>
+                                <button type="button" class="btn-area-chip" data-lat="12.929864" data-lng="77.582622" data-addr="4th Block, Jayanagar, Bengaluru" data-zone="South Zone" data-ward="Ward 153 (Jayanagar)">📍 Jayanagar</button>
+                                <button type="button" class="btn-area-chip" data-lat="12.845214" data-lng="77.660168" data-addr="Electronic City Phase 1, Hosur Road, Bengaluru" data-zone="Bommanahalli Zone" data-ward="Electronic City">📍 Electronic City</button>
+                            </div>
+                        </div>
+
+                        <!-- Instant Area Search Box -->
+                        <div class="search-bar-rounded">
+                            <i data-lucide="search" class="search-ico"></i>
+                            <input type="text" id="inputSearchArea" placeholder="Type area (e.g. Malleshwaram, BTM)...">
+                            <button type="button" class="btn-search-pill" id="btnSearchArea">Find</button>
+                        </div>
+
+                        <!-- Active Location Status -->
+                        <div class="active-location-pill" id="locationStatusBox">
+                            <i data-lucide="check-circle-2" class="loc-check-ico" id="locStatusIcon"></i>
+                            <span id="locStatusText">📍 Selected: Silk Board Junction, Hosur Road, Bengaluru</span>
+                        </div>
+
+                        <!-- Address Field -->
+                        <div class="pastel-field">
+                            <label for="inputAddress">Street Address / Landmark</label>
+                            <input type="text" id="inputAddress" class="input-rounded" placeholder="e.g. Silk Board Junction, Hosur Road, Bengaluru" required>
+                        </div>
+
+                        <!-- Google Maps Row -->
+                        <div class="gmaps-sync-row">
+                            <a href="https://maps.google.com" target="_blank" class="btn-pill-outline" id="btnOpenGMaps">
+                                <i data-lucide="map"></i> Google Maps
+                            </a>
+                            <div class="gmaps-paste-wrap">
+                                <input type="text" id="inputGoogleMapsUrl" class="input-rounded-sm" placeholder="Paste Google Maps URL...">
+                                <button type="button" class="btn-sync-pill" id="btnExtractGMaps">Sync</button>
+                            </div>
+                        </div>
+
+                        <!-- Mini Interactive Map -->
+                        <div class="mini-map-rounded">
+                            <div id="pickerMap" class="picker-map-canvas"></div>
+                        </div>
+
+                        <input type="hidden" id="inputLatitude" value="12.917649">
+                        <input type="hidden" id="inputLongitude" value="77.623788">
+                    </div>
+
+                    <!-- STEP 2: PHOTO & AI POTHOLE SCANNER -->
+                    <div class="pastel-card step-card-tint-blue">
+                        <div class="card-header-row">
+                            <div class="step-circle-badge bg-badge-blue">02</div>
+                            <div class="card-title-group">
+                                <h3>Road Photo & AI Scan</h3>
+                                <p>Take photo or select sample to detect distress</p>
+                            </div>
+                        </div>
+
+                        <!-- Quick Sample Buttons -->
+                        <div class="sample-pills-bar">
+                            <span class="sample-hint"><i data-lucide="sparkles"></i> Try Samples:</span>
+                            <div class="sample-chips-row">
+                                <button type="button" class="sample-chip chip-coral" data-sample="pothole_sample_1" id="sample1Btn">
+                                    🔴 Silk Board Crater
+                                </button>
+                                <button type="button" class="sample-chip chip-amber" data-sample="pothole_sample_2" id="sample2Btn">
+                                    🟠 Whitefield Pothole
+                                </button>
+                                <button type="button" class="sample-chip chip-mint" data-sample="clean_road_sample" id="sampleCleanBtn">
+                                    🟢 Clean Road
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Big Thumb Buttons for Camera & Gallery -->
+                        <div class="photo-picker-container" id="uploadDropZone">
+                            <input type="file" id="fileInput" accept="image/*" class="hidden-input">
+                            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden-input">
+
+                            <div class="photo-cards-grid" id="uploadIdleState">
+                                <button type="button" class="card-thumb-action card-mint" id="takePhotoBtn">
+                                    <div class="action-icon-circle mint-ico">
+                                        <i data-lucide="camera"></i>
+                                    </div>
+                                    <strong>Take Photo</strong>
+                                    <span>Snap road with camera</span>
+                                </button>
+
+                                <button type="button" class="card-thumb-action card-sky" id="browseFileBtn">
+                                    <div class="action-icon-circle sky-ico">
+                                        <i data-lucide="image"></i>
+                                    </div>
+                                    <strong>From Gallery</strong>
+                                    <span>Upload existing photo</span>
+                                </button>
+                            </div>
+
+                            <!-- Scanning Animation -->
+                            <div class="scanner-anim-box" id="uploadProcessingState" style="display: none;">
+                                <img id="processingPreviewImg" src="" alt="Scanning" class="loading-thumb">
+                                <div class="scanner-pulse-row">
+                                    <div class="pastel-spinner"></div>
+                                    <span>AI is analyzing road surface...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scan Result Card (Like Progress Ring Card in Capi Creative) -->
+                        <div class="scan-result-card" id="scanResultContainer" style="display: none;">
+                            <div class="result-header-bar">
+                                <span class="badge-severity-pill" id="resultSeverityPill">Critical Pothole</span>
+                                <button type="button" class="btn-retake-pill" id="btnResetScan">
+                                    <i data-lucide="rotate-ccw"></i> Change Photo
+                                </button>
+                            </div>
+
+                            <div class="preview-rounded-wrap">
+                                <img id="annotatedPreviewImg" src="" alt="AI Detections" class="result-image">
+                                <img id="originalPreviewImg" src="" alt="Original" class="result-image" style="display: none;">
+                            </div>
+
+                            <div class="toggle-pill-dock">
+                                <button type="button" class="pill-toggle active" id="btnViewAnnotated">
+                                    <i data-lucide="eye"></i> AI Detected View
+                                </button>
+                                <button type="button" class="pill-toggle" id="btnViewOriginal">
+                                    <i data-lucide="image"></i> Original Photo
+                                </button>
+                            </div>
+
+                            <!-- Metrics Ring Cards -->
+                            <div class="metrics-pastel-grid">
+                                <div class="metric-pastel-box bg-box-coral">
+                                    <span class="metric-num" id="resultPotholeCount">3</span>
+                                    <span class="metric-label">Potholes Found</span>
+                                </div>
+                                <div class="metric-pastel-box bg-box-mint">
+                                    <span class="metric-num" id="resultConfidence">94%</span>
+                                    <span class="metric-label">AI Accuracy</span>
+                                </div>
+                            </div>
+
+                            <div class="recommendation-pill" id="resultRecommendationBox">
+                                <i data-lucide="alert-triangle"></i>
+                                <span id="resultRecommendationText">High risk for 2-wheelers. Patching required.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: HAZARD CATEGORY & SUBMIT -->
+                    <div class="pastel-card step-card-tint-amber">
+                        <div class="card-header-row">
+                            <div class="step-circle-badge bg-badge-amber">03</div>
+                            <div class="card-title-group">
+                                <h3>Category & Send to BBMP</h3>
+                                <p>Select problem type and file report</p>
+                            </div>
+                        </div>
+
+                        <form id="reportForm">
+                            <div class="pastel-field">
+                                <label for="selectCategory">Road Problem Category</label>
+                                <select id="selectCategory" class="select-rounded-large">
+                                    <option value="Pothole" selected>🕳️ Pothole / Road Surface Crater</option>
+                                    <option value="Sewage Drilling">🚧 BWSSB Sewage Pipeline Digging</option>
+                                    <option value="Metro Construction">🏗️ Namma Metro Construction Lane Block</option>
+                                    <option value="BESCOM Trenching">⚡ BESCOM Electric Cable Dug-up</option>
+                                    <option value="Water-logging">🌊 Severe Water-Logging / Flood</option>
+                                    <option value="Road Resurfacing">🛣️ Paved / Resurfaced (Safe)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-cols-2">
+                                <div class="pastel-field">
+                                    <label for="selectZone">BBMP Zone</label>
+                                    <select id="selectZone" class="select-rounded">
+                                        <option value="Bommanahalli Zone" selected>Bommanahalli (Silk Board/HSR)</option>
+                                        <option value="Mahadevapura Zone">Mahadevapura (Whitefield/ORR)</option>
+                                        <option value="East Zone">East Zone (Indiranagar/Halasuru)</option>
+                                        <option value="South Zone">South Zone (Koramangala/Jayanagar)</option>
+                                        <option value="Central Zone">Central Zone (MG Road/Vidhana Soudha)</option>
+                                        <option value="West Zone">West Zone (Malleshwaram/Rajajinagar)</option>
+                                        <option value="Yelahanka Zone">Yelahanka (Hebbal/Airport Rd)</option>
+                                        <option value="RR Nagar Zone">RR Nagar (Kengeri/Mysore Rd)</option>
+                                    </select>
+                                </div>
+                                <div class="pastel-field">
+                                    <label for="inputWard">Ward / Area</label>
+                                    <input type="text" id="inputWard" class="input-rounded" placeholder="e.g. Ward 174 BTM Layout" value="Ward 174 (BTM Layout)">
+                                </div>
+                            </div>
+
+                            <div class="pastel-field">
+                                <label for="inputTitle">Summary Title</label>
+                                <input type="text" id="inputTitle" class="input-rounded" placeholder="e.g. Deep pothole near Silk Board" value="Critical Pothole Crater on Hosur Road" required>
+                            </div>
+
+                            <div class="pastel-field">
+                                <label for="inputDescription">Extra Details (Optional)</label>
+                                <textarea id="inputDescription" rows="2" class="textarea-rounded" placeholder="Mention if traffic is jamming or 2-wheelers are slipping...">Severe crater causing slow crawl. Urgent BBMP repair required.</textarea>
+                            </div>
+
+                            <input type="hidden" id="inputReporter" value="Bengaluru Citizen">
+
+                            <!-- BIG PASTEL GREEN SUBMIT PILL -->
+                            <div class="submit-action-group">
+                                <button type="submit" class="btn-giant-submit-pastel" id="btnSubmitReport">
+                                    <i data-lucide="send"></i>
+                                    <span>SUBMIT REPORT TO BBMP FOR REPAIR</span>
+                                </button>
+                                <span class="submit-guidance-note" id="submitHelperNote">Upload a photo in Step 2 or pick a sample photo to submit</span>
+                            </div>
+                        </form>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- TAB 2: LIVE ROAD MAP                                     -->
+        <!-- ======================================================== -->
+        <section class="tab-pane" id="tab-map">
+            <div class="map-view-wrapper">
+
+                <!-- TOP FLOATING PILL BAR ON MAP -->
+                <div class="map-pill-bar">
+                    <select id="mapLayerSelect" class="map-layer-dropdown">
+                        <option value="google-road">🗺️ Google Roadmap</option>
+                        <option value="google-satellite">🛰️ Google Satellite</option>
+                        <option value="osm">🌐 OpenStreetMap (Free)</option>
+                    </select>
+
+                    <div class="map-filter-scroll">
+                        <button type="button" class="chip-filter active" data-cat="all">All</button>
+                        <button type="button" class="chip-filter" data-cat="Pothole">🕳️ Potholes</button>
+                        <button type="button" class="chip-filter" data-cat="Sewage Drilling">🚧 Sewage</button>
+                        <button type="button" class="chip-filter" data-cat="Metro Construction">🏗️ Metro</button>
+                        <button type="button" class="chip-filter" data-cat="BESCOM Trenching">⚡ Cables</button>
+                    </div>
+
+                    <button type="button" class="btn-refresh-circle" id="btnRefreshMap" title="Refresh Hazards">
+                        <i data-lucide="refresh-cw"></i>
+                    </button>
+                </div>
+
+                <!-- MAP CANVAS & FLOATING ACTION BUTTONS -->
+                <div class="map-canvas-container">
+                    <div id="hazardMap" class="full-hazard-map"></div>
+
+                    <!-- FLOATING PASTEL "FIND MY LOCATION" PILL -->
+                    <button type="button" class="btn-map-locate-pill" id="btnCenterUser">
+                        <i data-lucide="crosshair"></i>
+                        <span>FIND MY LOCATION</span>
+                    </button>
+
+                    <!-- PASTEL MAP LEGEND -->
+                    <div class="map-mini-legend-dock">
+                        <div class="leg-item"><span class="dot-red"></span> Pothole</div>
+                        <div class="leg-item"><span class="dot-orange"></span> Moderate</div>
+                        <div class="leg-item"><span class="dot-amber"></span> Sewage</div>
+                        <div class="leg-item"><span class="dot-blue"></span> Metro</div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- TAB 3: RECENT HAZARDS FEED                               -->
+        <!-- ======================================================== -->
+        <section class="tab-pane" id="tab-list">
+            <div class="content-wrapper">
+                <div class="feed-header-card">
+                    <span class="hero-chip"><i data-lucide="list"></i> Live Incidents</span>
+                    <h2>Recent Bengaluru Road Hazards</h2>
+                    <p>Track reported road distress and official BBMP repair tickets</p>
+                    <div class="search-bar-rounded">
+                        <i data-lucide="search" class="search-ico"></i>
+                        <input type="text" id="reportSearchInput" placeholder="Search by road, area or ward...">
+                    </div>
+                </div>
+
+                <div class="reports-cards-grid" id="reportsCardsGrid">
+                    <!-- Populated dynamically via app.js -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- TAB 4: MAYOR & BBMP DIRECT HELPLINES                     -->
+        <!-- ======================================================== -->
+        <section class="tab-pane" id="tab-mayor">
+            <div class="content-wrapper">
+
+                <div class="mayor-hero-pastel">
+                    <div class="hero-chip">
+                        <i data-lucide="building-2"></i>
+                        <span>BBMP • Namma Bengaluru</span>
+                    </div>
+                    <h2>Need Quicker Road Repairs?</h2>
+                    <p>Directly contact municipal ward engineers & file 1-click grievances:</p>
+                    <a href="tel:1533" class="btn-call-hero-pill">
+                        <i data-lucide="phone-call"></i> Call BBMP 1533 Toll-Free
+                    </a>
+                </div>
+
+                <!-- 1-Click WhatsApp Grievance Box -->
+                <div class="pastel-card">
+                    <div class="card-header-row">
+                        <div class="step-circle-badge bg-badge-mint">WA</div>
+                        <div class="card-title-group">
+                            <h3>1-Click BBMP WhatsApp Complaint</h3>
+                            <p>Pre-fills formal grievance with photo & GPS</p>
+                        </div>
+                    </div>
+
+                    <div class="pastel-field">
+                        <label for="complaintReportSelect">Choose Reported Hazard</label>
+                        <select id="complaintReportSelect" class="select-rounded-large">
+                            <option value="">-- Choose reported hazard from list --</option>
+                        </select>
+                    </div>
+
+                    <div class="pastel-field">
+                        <label for="complaintTextPreview">Generated Grievance Text</label>
+                        <textarea id="complaintTextPreview" rows="4" readonly class="textarea-rounded font-mono"></textarea>
+                    </div>
+
+                    <div class="escalation-btn-group">
+                        <button type="button" class="btn-action-green" id="btnSendWhatsApp">
+                            <i data-lucide="message-circle"></i> Send WhatsApp to BBMP (+91 94806 85700)
+                        </button>
+                        <button type="button" class="btn-action-blue" id="btnTweetMayor">
+                            <i data-lucide="share-2"></i> Tweet to BBMP & @blrcitytraffic
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Helplines Grid -->
+                <div class="contacts-pastel-grid">
+                    <div class="contact-pastel-card card-sky">
+                        <div class="contact-icon sky-ico"><i data-lucide="phone"></i></div>
+                        <div class="contact-info">
+                            <h4>BBMP Control Room</h4>
+                            <span>Potholes & asphalt breakdown</span>
+                            <a href="tel:1533" class="contact-tel">📞 1533 (Toll Free)</a>
+                        </div>
+                    </div>
+
+                    <div class="contact-pastel-card card-mint">
+                        <div class="contact-icon mint-ico"><i data-lucide="message-square"></i></div>
+                        <div class="contact-info">
+                            <h4>BBMP WhatsApp</h4>
+                            <span>Send photo evidence</span>
+                            <a href="https://wa.me/919480685700" target="_blank" class="contact-tel">💬 +91 94806 85700</a>
+                        </div>
+                    </div>
+
+                    <div class="contact-pastel-card card-coral">
+                        <div class="contact-icon coral-ico"><i data-lucide="shield-alert"></i></div>
+                        <div class="contact-info">
+                            <h4>Traffic Police (BTP)</h4>
+                            <span>Roadblock & hazard diversions</span>
+                            <a href="tel:1095" class="contact-tel">📞 1095 / 080-22943030</a>
+                        </div>
+                    </div>
+
+                    <div class="contact-pastel-card card-amber">
+                        <div class="contact-icon amber-ico"><i data-lucide="droplet"></i></div>
+                        <div class="contact-info">
+                            <h4>BWSSB Water & Sewage</h4>
+                            <span>Pipeline drilling & open manholes</span>
+                            <a href="tel:1916" class="contact-tel">📞 1916 / 080-22238888</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FLOATING PASTEL BOTTOM NAVIGATION DOCK (Capi Creative Style) -->
+    <nav class="capi-bottom-dock">
+        <div class="dock-inner">
+            <button type="button" class="dock-btn active" data-tab="tab-report" id="mNavReport">
+                <div class="dock-icon-bubble">
+                    <i data-lucide="plus"></i>
+                </div>
+                <span>Report</span>
+            </button>
+            <button type="button" class="dock-btn" data-tab="tab-map" id="mNavMap">
+                <div class="dock-icon-bubble">
+                    <i data-lucide="map-pin"></i>
+                </div>
+                <span>Map</span>
+            </button>
+            <button type="button" class="dock-btn" data-tab="tab-list" id="mNavList">
+                <div class="dock-icon-bubble">
+                    <i data-lucide="list"></i>
+                </div>
+                <span>Feed</span>
+            </button>
+            <button type="button" class="dock-btn" data-tab="tab-mayor" id="mNavMayor">
+                <div class="dock-icon-bubble">
+                    <i data-lucide="phone"></i>
+                </div>
+                <span>Mayor</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- REPORT DETAILS POPUP MODAL -->
+    <div class="modal-overlay" id="reportModal" style="display: none;">
+        <div class="modal-card-pastel">
+            <div class="modal-top">
+                <h3 id="modalTitle">Incident Details</h3>
+                <button type="button" class="btn-close-circle" id="btnCloseModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body-pastel" id="modalBody">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS STACK -->
+    <div class="toast-stack" id="toastContainer"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Application Logic -->
+    <script src="/static/js/app.js?v={{ v }}"></script>
+</body>
+</html>
+
